@@ -1,0 +1,65 @@
+import os
+import random
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+
+users = {}
+def get_user(uid, name):
+    if uid not in users:
+        users[uid] = {"name": name, "point": 1000}
+    return users[uid]
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    u = get_user(update.effective_user.id, update.effective_user.first_name)
+    await update.message.reply_text(f"Chao {u['name']}! Diem: {u['point']}\nLenh: /taixiu tai 100 / /taixiu xiu 100 / /diem")
+
+async def diem(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    u = get_user(update.effective_user.id, update.effective_user.first_name)
+    await update.message.reply_text(f"Ban con: {u['point']} diem")
+
+async def taixiu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    u = get_user(update.effective_user.id, update.effective_user.first_name)
+    if len(context.args) < 2:
+        await update.message.reply_text("Dung: /taixiu tai 100")
+        return
+    chon = context.args[0].lower()
+    try:
+        cuoc = int(context.args[1])
+    except:
+        await update.message.reply_text("So diem phai la so!")
+        return
+    if cuoc > u["point"]:
+        await update.message.reply_text(f"Ban chi con {u['point']} diem!")
+        return
+    d1 = random.randint(1, 6)
+    d2 = random.randint(1, 6)
+    d3 = random.randint(1, 6)
+    tong = d1 + d2 + d3
+    kq = "tai" if tong >= 11 else "xiu"
+    if d1 == d2 == d3:
+        kq = "bao"
+    if kq == "bao":
+        u["point"] -= cuoc
+        msg = f"{d1}-{d2}-{d3} = {tong} BAO! Mat {cuoc}. Con: {u['point']}"
+    elif (chon == "tai" and kq == "tai") or (chon == "xiu" and kq == "xiu"):
+        u["point"] += cuoc
+        msg = f"{d1}-{d2}-{d3} = {tong} {kq.upper()} THANG +{cuoc}. Con: {u['point']}"
+    else:
+        u["point"] -= cuoc
+        msg = f"{d1}-{d2}-{d3} = {tong} {kq.upper()} THUA -{cuoc}. Con: {u['point']}"
+    if u["point"] <= 0:
+        u["point"] = 1000
+        msg += "\nHet diem! Tang lai 1000."
+    await update.message.reply_text(msg)
+
+def main():
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("diem", diem))
+    app.add_handler(CommandHandler("taixiu", taixiu))
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
